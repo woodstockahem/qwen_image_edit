@@ -67,19 +67,13 @@ def save_data_if_base64(data_input, temp_dir, output_filename):
         file_path = os.path.abspath(os.path.join(temp_dir, output_filename))
         with open(file_path, 'wb') as f: # 바이너리 쓰기 모드('wb')로 저장
             f.write(decoded_data)
-        
-        # 저장된 파일의 경로를 반환합니다.
-        print(f"✅ Base64 입력을 '{file_path}' 파일로 저장했습니다.")
         return file_path
 
     except (binascii.Error, ValueError):
-        # 디코딩에 실패하면, 일반 경로로 간주하고 원래 값을 그대로 반환합니다.
-        print(f"➡️ '{data_input}'은(는) 파일 경로로 처리합니다.")
         return data_input
     
 def queue_prompt(prompt):
     url = f"http://{server_address}:8188/prompt"
-    logger.info(f"Queueing prompt to: {url}")
     p = {"prompt": prompt, "client_id": client_id}
     data = json.dumps(p).encode('utf-8')
     req = urllib.request.Request(url, data=data)
@@ -87,7 +81,6 @@ def queue_prompt(prompt):
 
 def get_image(filename, subfolder, folder_type):
     url = f"http://{server_address}:8188/view"
-    logger.info(f"Getting image from: {url}")
     data = {"filename": filename, "subfolder": subfolder, "type": folder_type}
     url_values = urllib.parse.urlencode(data)
     with urllib.request.urlopen(f"{url}?{url_values}") as response:
@@ -95,7 +88,6 @@ def get_image(filename, subfolder, folder_type):
 
 def get_history(prompt_id):
     url = f"http://{server_address}:8188/history/{prompt_id}"
-    logger.info(f"Getting history from: {url}")
     with urllib.request.urlopen(url) as response:
         return json.loads(response.read())
 
@@ -161,15 +153,12 @@ def process_input(input_data, temp_dir, output_filename, input_type):
     - input_type: "path" | "url" | "base64"
     """
     if input_type == "path":
-        logger.info(f"📁 경로 입력 처리: {input_data}")
         return input_data
     elif input_type == "url":
-        logger.info(f"🌐 URL 입력 처리: {input_data}")
         os.makedirs(temp_dir, exist_ok=True)
         file_path = os.path.abspath(os.path.join(temp_dir, output_filename))
         return download_file_from_url(input_data, file_path)
     elif input_type == "base64":
-        logger.info("🔢 Base64 입력 처리")
         return save_base64_to_file(input_data, temp_dir, output_filename)
     else:
         raise Exception(f"지원하지 않는 입력 타입: {input_type}")
@@ -181,16 +170,14 @@ def download_file_from_url(url, output_path):
             'wget', '-O', output_path, '--no-verbose', url
         ], capture_output=True, text=True)
         if result.returncode == 0:
-            logger.info(f"✅ URL에서 파일을 성공적으로 다운로드했습니다: {url} -> {output_path}")
             return output_path
         else:
-            logger.error(f"❌ wget 다운로드 실패: {result.stderr}")
             raise Exception(f"URL 다운로드 실패: {result.stderr}")
     except subprocess.TimeoutExpired:
-        logger.error("❌ 다운로드 시간 초과")
+
         raise Exception("다운로드 시간 초과")
     except Exception as e:
-        logger.error(f"❌ 다운로드 중 오류 발생: {e}")
+
         raise Exception(f"다운로드 중 오류 발생: {e}")
 
 def save_base64_to_file(base64_data, temp_dir, output_filename):
@@ -201,16 +188,13 @@ def save_base64_to_file(base64_data, temp_dir, output_filename):
         file_path = os.path.abspath(os.path.join(temp_dir, output_filename))
         with open(file_path, 'wb') as f:
             f.write(decoded_data)
-        logger.info(f"✅ Base64 입력을 '{file_path}' 파일로 저장했습니다.")
         return file_path
     except (binascii.Error, ValueError) as e:
-        logger.error(f"❌ Base64 디코딩 실패: {e}")
         raise Exception(f"Base64 디코딩 실패: {e}")
 
 def handler(job):
     job_input = job.get("input", {})
-
-    logger.info(f"Received job input: {job_input}")
+    
     task_id = f"task_{uuid.uuid4()}"
 
     # ------------------------------
@@ -265,11 +249,9 @@ def handler(job):
         prompt[_NODE_HEIGHT]["inputs"]["value"] = job_input["height"]
 
     ws_url = f"ws://{server_address}:8188/ws?clientId={client_id}"
-    logger.info(f"Connecting to WebSocket: {ws_url}")
     
     # 먼저 HTTP 연결이 가능한지 확인
     http_url = f"http://{server_address}:8188/"
-    logger.info(f"Checking HTTP connection to: {http_url}")
     
     # HTTP 연결 확인 (최대 1분)
     max_http_attempts = 180
@@ -277,10 +259,10 @@ def handler(job):
         try:
             import urllib.request
             response = urllib.request.urlopen(http_url, timeout=5)
-            logger.info(f"HTTP 연결 성공 (시도 {http_attempt+1})")
+
             break
         except Exception as e:
-            logger.warning(f"HTTP 연결 실패 (시도 {http_attempt+1}/{max_http_attempts}): {e}")
+
             if http_attempt == max_http_attempts - 1:
                 raise Exception("ComfyUI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.")
             time.sleep(1)
@@ -291,10 +273,10 @@ def handler(job):
     for attempt in range(max_attempts):
         try:
             ws.connect(ws_url)
-            logger.info(f"웹소켓 연결 성공 (시도 {attempt+1})")
+
             break
         except Exception as e:
-            logger.warning(f"웹소켓 연결 실패 (시도 {attempt+1}/{max_attempts}): {e}")
+
             if attempt == max_attempts - 1:
                 raise Exception("웹소켓 연결 시간 초과 (3분)")
             time.sleep(5)
