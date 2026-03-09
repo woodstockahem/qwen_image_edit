@@ -99,8 +99,6 @@ def get_config():
     api_key = os.getenv("runpod_API_KEY") or os.getenv("RUNPOD_API_KEY")
     endpoint_id = os.getenv("qwen_image_edit") or os.getenv("RUNPOD_ENDPOINT_ID") or os.getenv("QWEN_IMAGE_EDIT_ENDPOINT_ID")
     if not api_key or not endpoint_id:
-        print("필요한 환경변수: runpod_API_KEY (또는 RUNPOD_API_KEY), qwen_image_edit (또는 RUNPOD_ENDPOINT_ID)")
-        print("프로젝트 루트의 test.env에 넣어두거나 export 하세요.")
         return None, None
     return api_key.strip(), endpoint_id.strip()
 
@@ -159,7 +157,7 @@ def main():
         for k in ["image_base64", "image_base64_2", "image_base64_3"]:
             if k in printable and isinstance(printable[k], str):
                 printable[k] = f"<base64:{len(printable[k])} chars>"
-        print("Input:", json.dumps(printable, indent=2, ensure_ascii=False))
+       
         print("\nRunPod runsync 호출 중...")
 
         try:
@@ -168,7 +166,7 @@ def main():
             print("요청 실패:", e)
             if hasattr(e, "response") and e.response is not None:
                 try:
-                    print("응답 본문:", e.response.text[:800])
+                    print("응답 본문:")
                 except Exception:
                     pass
             return False
@@ -179,28 +177,28 @@ def main():
         print("\nStatus:", status)
         if output:
             if isinstance(output, dict) and "error" in output:
-                print("Error:", output["error"])
+                print("Error:")
                 return False
             if isinstance(output, dict) and "image" in output:
                 img_b64 = output["image"]
-                print("image 필드 있음, 길이:", len(img_b64) if isinstance(img_b64, str) else "N/A")
+
                 if out_path and img_b64:
                     raw = base64.b64decode(img_b64)
                     out_p = Path(out_path)
                     out_p.parent.mkdir(parents=True, exist_ok=True)
                     out_p.write_bytes(raw)
-                    print("저장됨:", out_path)
+                    print("저장됨:")
                 return True
-            print("Output (일부):", json.dumps(output, indent=2, ensure_ascii=False)[:1200])
+
         else:
-            print("전체 응답:", json.dumps(result, indent=2, ensure_ascii=False)[:1800])
+            print("전체 응답:")
 
         if status == "IN_QUEUE" or status == "IN_PROGRESS":
-            print("\n(참고) 작업이 아직 완료되지 않았습니다. 워커 콜드 스타트일 수 있으니 잠시 후 다시 시도하거나, /run + /status 비동기 방식을 사용하세요.")
+
             return False
         if status != "COMPLETED":
             return False
-        print("\n테스트 통과: 결과물이 정상 반환되었습니다.")
+
         return True
 
     if args.json:
@@ -212,7 +210,7 @@ def main():
 
     if args.all:
         # 1) base64
-        print("=== 테스트 1/2: base64 입력 ===")
+
         img_b64 = _encode_file_to_base64(args.image_file)
         payload_b64 = _build_common()
         payload_b64["image_base64"] = img_b64
@@ -220,7 +218,7 @@ def main():
         ok1 = _call_once(payload_b64, out1)
 
         # 2) s3 업로드 + image_path
-        print("\n=== 테스트 2/2: S3 업로드 + image_path 입력 ===")
+
         ext = Path(args.image_file).suffix or ".png"
         s3_key = f"qwen_edit_tests/{uuid.uuid4().hex}{ext}"
         try:
@@ -233,7 +231,7 @@ def main():
                 out2 = str(p.with_name(p.stem + "_s3" + p.suffix))
             ok2 = _call_once(payload_s3, out2)
         except Exception as e:
-            print("S3 테스트 준비 실패:", e)
+
             ok2 = False
 
         sys.exit(0 if (ok1 and ok2) else 1)
@@ -243,7 +241,7 @@ def main():
     if mode == "url":
         image_url = args.image_url or os.getenv("TEST_IMAGE_URL")
         if not image_url:
-            print("--image-url 또는 TEST_IMAGE_URL 필요 (또는 --json/--all 사용)")
+
             sys.exit(1)
         input_payload = _build_common()
         input_payload["image_url"] = image_url
@@ -266,7 +264,7 @@ def main():
         ok = _call_once(input_payload, args.out)
         sys.exit(0 if ok else 1)
 
-    print("지원하지 않는 mode:", mode)
+
     sys.exit(1)
 
 
